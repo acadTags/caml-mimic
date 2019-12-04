@@ -16,11 +16,12 @@ import datasets
 import persistence
 import numpy as np
 
+#neat coding - HD
 def pick_model(args, dicts):
     """
         Use args to initialize the appropriate model
     """
-    Y = len(dicts['ind2c'])
+    Y = len(dicts['ind2c']) # get the number of codes (labels) - HD
     if args.model == "rnn":
         model = models.VanillaRNN(Y, args.embed_file, dicts, args.rnn_dim, args.cell_type, args.rnn_layers, args.gpu, args.embed_size,
                                   args.bidirectional)
@@ -33,7 +34,7 @@ def pick_model(args, dicts):
                                     embed_size=args.embed_size, dropout=args.dropout, code_emb=args.code_emb)
     elif args.model == "logreg":
         model = models.BOWPool(Y, args.embed_file, args.lmbda, args.gpu, dicts, args.pool, args.embed_size, args.dropout, args.code_emb)
-    if args.test_model:
+    if args.test_model: # directly testing the saved models -HD
         sd = torch.load(args.test_model)
         model.load_state_dict(sd)
     if args.gpu:

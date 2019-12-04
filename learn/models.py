@@ -39,7 +39,7 @@ class BaseModel(nn.Module):
         else:
             #add 2 to include UNK and PAD
             vocab_size = len(dicts['ind2w'])
-            self.embed = nn.Embedding(vocab_size+2, embed_size, padding_idx=0)
+            self.embed = nn.Embedding(vocab_size+2, embed_size, padding_idx=0) # random initialisation
             
 
     def _get_loss(self, yhat, target, diffs=None):
@@ -48,7 +48,9 @@ class BaseModel(nn.Module):
 
         #add description regularization loss if relevant
         if self.lmbda > 0 and diffs is not None:
-            diff = torch.stack(diffs).mean()
+            diff = torch.stack(diffs).mean() 
+            #about torch.stack() https://pytorch.org/docs/0.3.1/torch.html?highlight=torch%20stack#torch.stack -HD
+            #about torch.mean() https://pytorch.org/docs/0.3.1/torch.html#torch.mean -HD
             loss = loss + diff
         return loss
 
@@ -88,7 +90,9 @@ class BaseModel(nn.Module):
             #multiply by number of labels to make sure overall mean is balanced with regard to number of labels
             diffs.append(self.lmbda*diff*bi.size()[0])
         return diffs
-
+    
+    #todo: add semantic-based loss
+    
 class BOWPool(BaseModel):
     """
         Logistic regression model over average or max-pooled word vector input

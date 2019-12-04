@@ -122,7 +122,7 @@ def data_generator(filename, dicts, batch_size, num_labels, desc_embed=False, ve
 
 def load_vocab_dict(args, vocab_file):
     #reads vocab_file into two lookups (word:ind) and (ind:word)
-    vocab = set()
+    vocab = set() # initialising a python set - HD
     with open(vocab_file, 'r') as vocabfile:
         for i,line in enumerate(vocabfile):
             line = line.rstrip()
@@ -133,7 +133,7 @@ def load_vocab_dict(args, vocab_file):
         ind2w = {i:w for i,w in enumerate(sorted(vocab))}
     else:
         ind2w = {i+1:w for i,w in enumerate(sorted(vocab))}
-    w2ind = {w:i for i,w in ind2w.items()}
+    w2ind = {w:i for i,w in ind2w.items()} # iterating over dictionary - HD
     return ind2w, w2ind
 
 def load_lookups(args, desc_embed=False):
@@ -200,8 +200,8 @@ def load_full_codes(train_path, version='mimic3'):
                 for row in lr:
                     for code in row[3].split(';'):
                         codes.add(code)
-        codes = set([c for c in codes if c != ''])
-        ind2c = defaultdict(str, {i:c for i,c in enumerate(sorted(codes))})
+        codes = set([c for c in codes if c != '']) # remove empty, splitted codes -HD
+        ind2c = defaultdict(str, {i:c for i,c in enumerate(sorted(codes))}) # build a str defaultdict, if key not included in codes, then value as an empty string ''. -HD
     return ind2c, desc_dict
 
 def reformat(code, is_diag):

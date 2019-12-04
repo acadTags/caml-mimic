@@ -25,6 +25,7 @@ import persistence
 import learn.models as models
 import learn.tools as tools
 
+#all input arguments are at the bottom of this code (HD)
 def main(args):
     start = time.time()
     args, model, optimizer, params, dicts = init(args)
@@ -39,10 +40,10 @@ def init(args):
     csv.field_size_limit(sys.maxsize)
 
     #load vocab and other lookups
-    desc_embed = args.lmbda > 0
+    desc_embed = args.lmbda > 0 #this is where DR_CAML is turned on (HD)
     print("loading lookups...")
     dicts = datasets.load_lookups(args, desc_embed=desc_embed)
-
+    
     model = tools.pick_model(args, dicts)
     print(model)
 
