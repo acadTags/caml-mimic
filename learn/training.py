@@ -317,7 +317,7 @@ if __name__ == "__main__":
                         help="size of conv output (default: 50)")
     parser.add_argument("--pool", choices=['max', 'avg'], required=False, dest="pool", help="which type of pooling to do (logreg model only)")
     parser.add_argument("--code-emb", type=str, required=False, dest="code_emb", 
-                        help="point to code embeddings to use for parameter initialization, if applicable")
+                        help="point to code embeddings to use for parameter initialization, if applicable") # this allows to insert code embedding that may contain knowledge (relations or network embedding) of the labels. -HD
     parser.add_argument("--weight-decay", type=float, required=False, dest="weight_decay", default=0,
                         help="coefficient for penalizing l2 norm of model weights (default: 0)")
     parser.add_argument("--lr", type=float, required=False, dest="lr", default=1e-3,

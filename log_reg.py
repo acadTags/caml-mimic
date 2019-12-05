@@ -1,6 +1,7 @@
 """
     Reads (or writes) BOW-formatted notes and performs scikit-learn logistic regression
 """
+# this file seems not compatible with the others. -HD
 import csv
 import numpy as np
 import os
@@ -34,7 +35,8 @@ def main(Y, train_fname, dev_fname, vocab_file, version, n):
 
     #get lookups from non-BOW data
     data_path = train_fname.replace('_bows', '') if "_bows" in train_fname else train_fname
-    dicts = datasets.load_lookups(data_path, vocab_file=vocab_file, Y=Y, version=version)
+    dicts = datasets.load_lookups(data_path, vocab_file=vocab_file, Y=Y, version=version) # not compatible with the function in datasets.py -HD
+    
     w2ind, ind2c, c2ind = dicts['w2ind'], dicts['ind2c'], dicts['c2ind']
 
     X, yy_tr, hids_tr = read_bows(Y, train_fname, c2ind, version)
@@ -295,8 +297,8 @@ def calculate_top_ngrams(inputfile, clf, c2ind, w2ind, labels_with_examples, n):
     f.close()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 8:
+    if len(sys.argv) < 6:
         print("usage: python " + str(os.path.basename(__file__) + " [|Y|] [train_dataset] [dev_dataset] [vocab_file] [version] [size of ngrams (0 if do not wish to generate)]"))
         sys.exit(0)
-    main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7])
+    main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
 

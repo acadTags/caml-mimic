@@ -91,7 +91,7 @@ class BaseModel(nn.Module):
             diffs.append(self.lmbda*diff*bi.size()[0])
         return diffs
     
-    #todo: add semantic-based loss
+    #todo: add semantic-based loss regularization
     
 class BOWPool(BaseModel):
     """
@@ -101,33 +101,42 @@ class BOWPool(BaseModel):
     def __init__(self, Y, embed_file, lmbda, gpu, dicts, pool='max', embed_size=100, dropout=0.5, code_emb=None):
         super(BOWPool, self).__init__(Y, embed_file, dicts, lmbda, dropout=dropout, gpu=gpu, embed_size=embed_size)
         self.final = nn.Linear(embed_size, Y)
+        #for nn.Linear see https://pytorch.org/docs/0.3.1/nn.html?highlight=nn%20linear#torch.nn.Linear
+        #the embed_size and Y define the weight matrix size.
         if code_emb:
             self._code_emb_init(code_emb, dicts)
         else:
             xavier_uniform(self.final.weight)
         self.pool = pool
-
+    
+    #initialisation of the weight size as the code embeddings. -HD
     def _code_emb_init(self, code_emb, dicts):
         code_embs = KeyedVectors.load_word2vec_format(code_emb)
         weights = np.zeros(self.final.weight.size())
         for i in range(self.Y):
             code = dicts['ind2c'][i]
             weights[i] = code_embs[code]
-        self.final.weight.data = torch.Tensor(weights).clone()
+        self.final.weight.data = torch.Tensor(weights).clone() # set weight as the code embeddings.
 
     def forward(self, x, target, desc_data=None, get_attention=False):
         #get embeddings and apply dropout
         x = self.embed(x)
-        x = self.embed_drop(x)
-        x = x.transpose(1, 2)
+        #x = self.embed_drop(x) #also applying dropout here for logistic regression. -HD
+        #print('x', x) # to check the type of x. -HD
+        #x = x.transpose(0, 2)
+        #print('x-transposed', x) # to check x. -HD
         if self.pool == 'max':
-            import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace() # this is for debugging -HD
             x = F.max_pool1d(x)
         else:
-            x = F.avg_pool1d(x)
-        logits = F.sigmoid(self.final(x))
-        loss = self._get_loss(logits, target, diffs)
-        return yhat, loss, None
+            #x = F.avg_pool1d(x) # TypeError: avg_pool1d() missing 1 required positional argument: 'kernel_size'
+            #x = F.avg_pool1d(x, kernel_size=x.size()[2])
+            x = torch.mean(x,1)
+            #print('x-avg_pool1d',x)
+        logits = F.sigmoid(self.final(x)) # only using the pooled, document embedding for logistic regression. In this case, it is also possible to apply SVM for the task. -HD
+        #loss = self._get_loss(logits, target, diffs)
+        loss = self._get_loss(logits, target, diffs=desc_data)
+        return logits, loss, None
 
 class ConvAttnPool(BaseModel):
 
@@ -228,7 +237,7 @@ class VanillaConv(BaseModel):
         if get_attention:
             #get argmax vector too
             x, argmax = F.max_pool1d(F.tanh(c), kernel_size=c.size()[2], return_indices=True)
-            attn = self.construct_attention(argmax, c.size()[2])
+            attn = self.construct_attention(argmax, c.size()[2]) # 'fake' attention from the vanilla CNN for explanation -HD
         else:
             x = F.max_pool1d(F.tanh(c), kernel_size=c.size()[2])
             attn = None
