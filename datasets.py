@@ -136,19 +136,19 @@ def load_vocab_dict(args, vocab_file):
     w2ind = {w:i for i,w in ind2w.items()} # iterating over dictionary - HD
     return ind2w, w2ind
 
-#for log_reg.py
-def load_vocab_dict(vocab_file):
-    #reads vocab_file into two lookups (word:ind) and (ind:word)
-    vocab = set() # initialising a python set - HD
-    with open(vocab_file, 'r') as vocabfile:
-        for i,line in enumerate(vocabfile):
-            line = line.rstrip()
-            if line != '':
-                vocab.add(line.strip())
-    #hack because the vocabs were created differently for these models
-    ind2w = {i:w for i,w in enumerate(sorted(vocab))}
-    w2ind = {w:i for i,w in ind2w.items()} # iterating over dictionary - HD
-    return ind2w, w2ind
+# #for log_reg.py
+# def load_vocab_dict(vocab_file):
+    # #reads vocab_file into two lookups (word:ind) and (ind:word)
+    # vocab = set() # initialising a python set - HD
+    # with open(vocab_file, 'r') as vocabfile:
+        # for i,line in enumerate(vocabfile):
+            # line = line.rstrip()
+            # if line != '':
+                # vocab.add(line.strip())
+    # #hack because the vocabs were created differently for these models
+    # ind2w = {i:w for i,w in enumerate(sorted(vocab))}
+    # w2ind = {w:i for i,w in ind2w.items()} # iterating over dictionary - HD
+    # return ind2w, w2ind
     
 def load_lookups(args, desc_embed=False):
     """
@@ -183,40 +183,40 @@ def load_lookups(args, desc_embed=False):
     dicts = {'ind2w': ind2w, 'w2ind': w2ind, 'ind2c': ind2c, 'c2ind': c2ind, 'desc': desc_dict, 'dv': dv_dict}
     return dicts
 
-#for log_reg.py
-def load_lookups(data_path, vocab_file, Y, version, desc_embed=None):
-#data_path, vocab_file=vocab_file, Y=Y, version=version
-    """
-        Inputs:
-            args: Input arguments
-            desc_embed: true if using DR-CAML
-        Outputs:
-            vocab lookups, ICD code lookups, description lookup, description one-hot vector lookup
-    """
-    #get vocab lookups
-    ind2w, w2ind = load_vocab_dict(vocab_file)
+# #for log_reg.py
+# def load_lookups(data_path, vocab_file, Y, version, desc_embed=None):
+# #data_path, vocab_file=vocab_file, Y=Y, version=version
+    # """
+        # Inputs:
+            # args: Input arguments
+            # desc_embed: true if using DR-CAML
+        # Outputs:
+            # vocab lookups, ICD code lookups, description lookup, description one-hot vector lookup
+    # """
+    # #get vocab lookups
+    # ind2w, w2ind = load_vocab_dict(vocab_file)
 
-    #get code and description lookups
-    if Y == 'full':
-        ind2c, desc_dict = load_full_codes(data_path, version)
-    else:
-        codes = set()
-        with open("%s/TOP_%s_CODES.csv" % (MIMIC_3_DIR, str(Y)), 'r') as labelfile:
-            lr = csv.reader(labelfile)
-            for i,row in enumerate(lr):
-                codes.add(row[0])
-        ind2c = {i:c for i,c in enumerate(sorted(codes))}
-        desc_dict = load_code_descriptions()
-    c2ind = {c:i for i,c in ind2c.items()}
+    # #get code and description lookups
+    # if Y == 'full':
+        # ind2c, desc_dict = load_full_codes(data_path, version)
+    # else:
+        # codes = set()
+        # with open("%s/TOP_%s_CODES.csv" % (MIMIC_3_DIR, str(Y)), 'r') as labelfile:
+            # lr = csv.reader(labelfile)
+            # for i,row in enumerate(lr):
+                # codes.add(row[0])
+        # ind2c = {i:c for i,c in enumerate(sorted(codes))}
+        # desc_dict = load_code_descriptions()
+    # c2ind = {c:i for i,c in ind2c.items()}
 
-    #get description one-hot vector lookup
-    if desc_embed:
-        dv_dict = load_description_vectors(Y, version)
-    else:
-        dv_dict = None
+    # #get description one-hot vector lookup
+    # if desc_embed:
+        # dv_dict = load_description_vectors(Y, version)
+    # else:
+        # dv_dict = None
 
-    dicts = {'ind2w': ind2w, 'w2ind': w2ind, 'ind2c': ind2c, 'c2ind': c2ind, 'desc': desc_dict, 'dv': dv_dict}
-    return dicts
+    # dicts = {'ind2w': ind2w, 'w2ind': w2ind, 'ind2c': ind2c, 'c2ind': c2ind, 'desc': desc_dict, 'dv': dv_dict}
+    # return dicts
     
 def load_full_codes(train_path, version='mimic3'):
     """

@@ -45,7 +45,8 @@ class BaseModel(nn.Module):
     def _get_loss(self, yhat, target, diffs=None):
         #calculate the BCE
         loss = F.binary_cross_entropy_with_logits(yhat, target)
-
+        # torch.nn.BCEWithLogitsLoss(weight=None, size_average=True)https://pytorch.org/docs/0.3.1/nn.html?highlight=binary_cross_entropy_with_logits#torch.nn.BCEWithLogitsLoss
+        
         #add description regularization loss if relevant
         if self.lmbda > 0 and diffs is not None:
             diff = torch.stack(diffs).mean() 
@@ -91,7 +92,7 @@ class BaseModel(nn.Module):
             diffs.append(self.lmbda*diff*bi.size()[0])
         return diffs
     
-    #todo: add semantic-based loss regularization
+    #todo: add semantic-based loss regularization [soon]
     
 class BOWPool(BaseModel):
     """
@@ -144,7 +145,8 @@ class ConvAttnPool(BaseModel):
         super(ConvAttnPool, self).__init__(Y, embed_file, dicts, lmbda, dropout=dropout, gpu=gpu, embed_size=embed_size)
 
         #initialize conv layer as in 2.1
-        self.conv = nn.Conv1d(self.embed_size, num_filter_maps, kernel_size=kernel_size, padding=int(floor(kernel_size/2)))
+        self.conv = nn.Conv1d(self.embed_size, num_filter_maps, kernel_size=kernel_size, padding=int(floor(kernel_size/2))) # torch.nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True) -HD
+        #see https://adeshpande3.github.io/A-Beginner%27s-Guide-To-Understanding-Convolutional-Neural-Networks-Part-2/ about CNN and zeropadding
         xavier_uniform(self.conv.weight)
 
         #context vectors for computing attention as in 2.2
@@ -189,17 +191,45 @@ class ConvAttnPool(BaseModel):
         #get embeddings and apply dropout
         x = self.embed(x)
         x = self.embed_drop(x)
+        #print('x',x.shape)
         x = x.transpose(1, 2)
-
+        #print('x-transposed',x.shape)
+        
         #apply convolution and nonlinearity (tanh)
         x = F.tanh(self.conv(x).transpose(1,2))
+        #print('x-conv-transposed-nonlinearity',x.shape)
+        
         #apply attention
+        #print('self.U.weight',self.U.weight.shape)
         alpha = F.softmax(self.U.weight.matmul(x.transpose(1,2)), dim=2)
+        #print('alpha',alpha.shape) #[torch.cuda.FloatTensor of size 16x8921x118 (GPU 0)] #this is really a large size of alpha! -HD
         #document representations are weighted sums using the attention. Can compute all at once as a matmul
         m = alpha.matmul(x)
+        #print('m',m.shape) #[torch.cuda.FloatTensor of size 16x8921x50 (GPU 0)]
+        
+        #print('self.final.weight',self.final.weight.shape)
         #final layer classification
         y = self.final.weight.mul(m).sum(dim=2).add(self.final.bias)
-        
+        #print('y',y) #[torch.cuda.FloatTensor of size 16x8921 (GPU 0)]
+
+        #an example here
+        #x torch.Size([16, 117, 100])
+        #x-transposed torch.Size([16, 100, 117])
+        #x-conv-transposed-nonlinearity torch.Size([16, 118, 50])
+        #self.U.weight torch.Size([8921, 50])
+        #alpha torch.Size([16, 8921, 118])
+        #m torch.Size([16, 8921, 50])
+        #self.final.weight torch.Size([8921, 50])
+        #y Variable containing:
+        # 8.2350e-02  1.1934e-01  1.3893e-01  ...   2.6954e-02  5.3924e-03  1.8069e-02
+        # 8.2866e-02  1.2009e-01  1.3988e-01  ...   2.6592e-02  5.1176e-03  1.8395e-02
+        # 8.1059e-02  1.1930e-01  1.3908e-01  ...   2.6202e-02  5.7202e-03  1.7288e-02
+                       # ...                   ⋱                   ...
+        # 8.2959e-02  1.1797e-01  1.3966e-01  ...   2.5005e-02  7.7955e-03  1.8791e-02
+        # 8.3862e-02  1.1899e-01  1.3727e-01  ...   2.7737e-02  9.2247e-03  1.8746e-02
+        # 8.4048e-02  1.1827e-01  1.3769e-01  ...   2.5353e-02  8.2030e-03  1.8507e-02
+        #[torch.cuda.FloatTensor of size 16x8921 (GPU 0)]
+
         if desc_data is not None:
             #run descriptions through description module
             b_batch = self.embed_descriptions(desc_data, self.gpu)
@@ -220,6 +250,7 @@ class VanillaConv(BaseModel):
         super(VanillaConv, self).__init__(Y, embed_file, dicts, dropout=dropout, embed_size=embed_size) 
         #initialize conv layer as in 2.1
         self.conv = nn.Conv1d(self.embed_size, num_filter_maps, kernel_size=kernel_size)
+        # torch.nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True) -HD
         xavier_uniform(self.conv.weight)
 
         #linear output
@@ -230,21 +261,33 @@ class VanillaConv(BaseModel):
         #embed
         x = self.embed(x)
         x = self.embed_drop(x)
+        #print('x',x.shape) # (batch_size,doc_length,embed_size)
         x = x.transpose(1, 2)
-
+        #print('x',x.shape) # (batch_size,embed_size,doc_length)
         #conv/max-pooling
         c = self.conv(x)
+        #print('c',c.shape) # (batch_size,num_filter_maps,(doc_length-kernel_size+1)/stride)
         if get_attention:
             #get argmax vector too
             x, argmax = F.max_pool1d(F.tanh(c), kernel_size=c.size()[2], return_indices=True)
             attn = self.construct_attention(argmax, c.size()[2]) # 'fake' attention from the vanilla CNN for explanation -HD
         else:
             x = F.max_pool1d(F.tanh(c), kernel_size=c.size()[2])
+            #print('x-pooled',x.shape)
             attn = None
         x = x.squeeze(dim=2)
+        #print('x-squeezed',x.shape)
 
         #linear output
         x = self.fc(x)
+        #print('x-final',x.shape)
+        
+        #one example here
+        #x torch.Size([16, 100, 392])
+        #c torch.Size([16, 500, 389])
+        #after pooling torch.Size([16, 500, 1])
+        #after squeezing torch.Size([16, 500])
+        #final torch.Size([16, 8921])
 
         #final sigmoid to get predictions
         yhat = x
