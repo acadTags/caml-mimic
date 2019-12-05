@@ -17,6 +17,10 @@ import time
 from tqdm import tqdm
 from collections import defaultdict
 
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
+
 from constants import *
 import datasets
 import evaluation
@@ -202,8 +206,10 @@ def train(model, optimizer, Y, epoch, batch_size, data_path, gpu, version, dicts
 
         if not quiet and batch_idx % print_every == 0:
             #print the average loss of the last 10 batches
+            #ave_loss=10
+            ave_loss=1
             print("Train epoch: {} [batch #{}, batch_size {}, seq length {}]\tLoss: {:.6f}".format(
-                epoch, batch_idx, data.size()[0], data.size()[1], np.mean(losses[-10:])))
+                epoch, batch_idx, data.size()[0], data.size()[1], np.mean(losses[-ave_loss:])))
     return losses, unseen_code_inds
 
 def unseen_code_vecs(model, code_inds, dicts, gpu):
