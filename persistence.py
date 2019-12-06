@@ -63,13 +63,13 @@ def save_everything(args, metrics_hist_all, model, model_dir, params, criterion,
 
     if not evaluate:
         #save the model with the best criterion metric
-        if not np.all(np.isnan(metrics_hist_all[0][criterion])):
+        if not np.all(np.isnan(metrics_hist_all[0][criterion])): # metrics_hist_all[0] is dev results -HD
             if criterion == 'loss_dev': 
                 eval_val = np.nanargmin(metrics_hist_all[0][criterion])
             else:
                 eval_val = np.nanargmax(metrics_hist_all[0][criterion])
 
-            if eval_val == len(metrics_hist_all[0][criterion]) - 1:                
+            if eval_val == len(metrics_hist_all[0][criterion]) - 1: # if the best result index is the most recent index -HD               
 
 		#save state dict
                 sd = model.cpu().state_dict()
