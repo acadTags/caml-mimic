@@ -49,8 +49,31 @@ def init(args):
     dicts = datasets.load_lookups(args, desc_embed=desc_embed)
     
     model = tools.pick_model(args, dicts)
+    print("starting to print model setting info...")
     print(model)
-
+    
+    params = list(model.parameters())
+    print('parameters:',len(params))
+    for i,param in enumerate(params):
+        print('parameter',i,':',param.size())
+    #vanilla CNN
+        # parameters: 5
+        # parameter 0 : torch.Size([51919, 100])
+        # parameter 1 : torch.Size([500, 100, 4]), 500 filters, kernel size [100, 4].
+        # parameter 2 : torch.Size([500]) # these are bias weights probably.
+        # parameter 3 : torch.Size([8921, 500])
+        # parameter 4 : torch.Size([8921])
+    
+    #CAML
+        # parameters: 7
+        # parameter 0 : torch.Size([51919, 100])
+        # parameter 1 : torch.Size([50, 100, 10]), 500 filters, kernel size [100, 10].
+        # parameter 2 : torch.Size([50])
+        # parameter 3 : torch.Size([8921, 50])
+        # parameter 4 : torch.Size([8921]) # this are is bias weights probably.
+        # parameter 5 : torch.Size([8921, 50])
+        # parameter 6 : torch.Size([8921]) # this are is bias weights probably.
+        
     if not args.test_model:
         optimizer = optim.Adam(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)
     else:
@@ -179,7 +202,7 @@ def train(model, optimizer, Y, epoch, batch_size, data_path, gpu, version, dicts
 
     ind2w, w2ind, ind2c, c2ind = dicts['ind2w'], dicts['w2ind'], dicts['ind2c'], dicts['c2ind']
     unseen_code_inds = set(ind2c.keys())
-    desc_embed = model.lmbda > 0
+    desc_embed = model.lmbda > 0 # the desc_embed is purely based on the lmbda specified by users -HD
 
     model.train()
     gen = datasets.data_generator(data_path, dicts, batch_size, num_labels, version=version, desc_embed=desc_embed)
@@ -197,7 +220,7 @@ def train(model, optimizer, Y, epoch, batch_size, data_path, gpu, version, dicts
         else:
             desc_data = None
 
-        output, loss, _ = model(data, target, desc_data=desc_data)
+        output, loss, _ = model(data, target, desc_data=desc_data) # here it calls the nn.Module.foward() function -HD
 
         loss.backward()
         optimizer.step()

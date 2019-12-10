@@ -20,7 +20,7 @@ from dataproc import extract_wvs
 
 class BaseModel(nn.Module):
 
-    def __init__(self, Y, embed_file, dicts, lmbda=0, dropout=0.5, gpu=True, embed_size=100):
+    def __init__(self, Y, embed_file, dicts, lmbda=0, dropout=0.5, gpu=True, embed_size=100, lmbda_sim=0, lmbda_sub=0):
         super(BaseModel, self).__init__()
         torch.manual_seed(1337)
         self.gpu = gpu
@@ -28,6 +28,8 @@ class BaseModel(nn.Module):
         self.embed_size = embed_size
         self.embed_drop = nn.Dropout(p=dropout)
         self.lmbda = lmbda
+        self.lmbda_sim = lmbda_sim
+        self.lmbda_sub = lmbda_sub
 
         #make embedding layer
         if embed_file:
@@ -42,7 +44,7 @@ class BaseModel(nn.Module):
             self.embed = nn.Embedding(vocab_size+2, embed_size, padding_idx=0) # random initialisation
             
 
-    def _get_loss(self, yhat, target, diffs=None):
+    def _get_loss(self, yhat, target, diffs=None, sim_reg=None, sub_reg=None):
         #calculate the BCE
         loss = F.binary_cross_entropy_with_logits(yhat, target)
         # torch.nn.BCEWithLogitsLoss(weight=None, size_average=True)https://pytorch.org/docs/0.3.1/nn.html?highlight=binary_cross_entropy_with_logits#torch.nn.BCEWithLogitsLoss
@@ -53,6 +55,12 @@ class BaseModel(nn.Module):
             #about torch.stack() https://pytorch.org/docs/0.3.1/torch.html?highlight=torch%20stack#torch.stack -HD
             #about torch.mean() https://pytorch.org/docs/0.3.1/torch.html#torch.mean -HD
             loss = loss + diff
+            
+        #add sim loss and sub loss if relevant
+        if self.lmbda_sim > 0 and sim_reg is not None:
+            loss = loss + sim_reg
+        if self.lmbda_sub > 0 and sub_reg is not None:
+            loss = loss + sub_reg
         return loss
 
     def embed_descriptions(self, desc_data, gpu):
@@ -93,7 +101,9 @@ class BaseModel(nn.Module):
         return diffs
     
     #todo: add semantic-based loss regularization [soon]
-    
+    def _calcultate_semantic_based_lossreg(self,):
+        return "" 
+        
 class BOWPool(BaseModel):
     """
         Logistic regression model over average or max-pooled word vector input
@@ -113,6 +123,8 @@ class BOWPool(BaseModel):
     #initialisation of the weight size as the code embeddings. -HD
     def _code_emb_init(self, code_emb, dicts):
         code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        #classmethod load_word2vec_format(fname, fvocab=None, binary=False, encoding='utf8', unicode_errors='strict', limit=None, datatype=<class 'numpy.float32'>) 
+        #Load the input-hidden weight matrix from the original C word2vec-tool format.
         weights = np.zeros(self.final.weight.size())
         for i in range(self.Y):
             code = dicts['ind2c'][i]
@@ -160,10 +172,10 @@ class ConvAttnPool(BaseModel):
         #initialize with trained code embeddings if applicable
         if code_emb:
             self._code_emb_init(code_emb, dicts)
-            #also set conv weights to do sum of inputs
-            weights = torch.eye(self.embed_size).unsqueeze(2).expand(-1,-1,kernel_size)/kernel_size
-            self.conv.weight.data = weights.clone()
-            self.conv.bias.data.zero_()
+            ##also set conv weights to do sum of inputs
+            #weights = torch.eye(self.embed_size).unsqueeze(2).expand(-1,-1,kernel_size)/kernel_size
+            #self.conv.weight.data = weights.clone()
+            #self.conv.bias.data.zero_()
         
         #conv for label descriptions as in 2.5
         #description module has its own embedding and convolution layers
@@ -187,7 +199,7 @@ class ConvAttnPool(BaseModel):
         self.U.weight.data = torch.Tensor(weights).clone()
         self.final.weight.data = torch.Tensor(weights).clone()
         
-    def forward(self, x, target, desc_data=None, get_attention=True):
+    def forward(self, x, target, desc_data=None, get_attention=True, sim_data=None, sub_data=None):
         #get embeddings and apply dropout
         x = self.embed(x)
         x = self.embed_drop(x)
@@ -246,7 +258,7 @@ class ConvAttnPool(BaseModel):
 
 class VanillaConv(BaseModel):
 
-    def __init__(self, Y, embed_file, kernel_size, num_filter_maps, gpu=True, dicts=None, embed_size=100, dropout=0.5):
+    def __init__(self, Y, embed_file, kernel_size, num_filter_maps, gpu=True, dicts=None, embed_size=100, dropout=0.5, code_emb=None):
         super(VanillaConv, self).__init__(Y, embed_file, dicts, dropout=dropout, embed_size=embed_size) 
         #initialize conv layer as in 2.1
         self.conv = nn.Conv1d(self.embed_size, num_filter_maps, kernel_size=kernel_size)
@@ -256,8 +268,25 @@ class VanillaConv(BaseModel):
         #linear output
         self.fc = nn.Linear(num_filter_maps, Y)
         xavier_uniform(self.fc.weight)
-
+        
+        #initialize with trained code embeddings if applicable
+        if code_emb:
+            self._code_emb_init(code_emb, dicts)
+            ##also set conv weights to do sum of inputs
+            #weights = torch.eye(self.embed_size).unsqueeze(2).expand(-1,-1,kernel_size)/kernel_size
+            #self.conv.weight.data = weights.clone()
+            #self.conv.bias.data.zero_()
+    
+    def _code_emb_init(self, code_emb, dicts):
+        code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        weights = np.zeros(self.final.weight.size())
+        for i in range(self.Y):
+            code = dicts['ind2c'][i]
+            weights[i] = code_embs[code]
+        self.fc.weight.data = torch.Tensor(weights).clone()
+        
     def forward(self, x, target, desc_data=None, get_attention=False):
+        #print('calling the forward function now')
         #embed
         x = self.embed(x)
         x = self.embed_drop(x)
