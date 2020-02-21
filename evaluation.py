@@ -339,9 +339,12 @@ def print_metrics(metrics):
     print()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
-        print("usage: python " + str(os.path.basename(__file__) + " [train_dataset] [|Y| (as string)] [version (mimic2 or mimic3)] [model_dir]"))
+    print(len(sys.argv))
+    if len(sys.argv) < 4:
+        print("usage: python " + str(os.path.basename(__file__) + " [train_dataset] [|Y| (as string)] [version (mimic2 or mimic3)] [model_dir （optional, default as current path)]")) #-HD
         sys.exit(0)
+    elif len(sys.argv) == 4:
+        sys.argv.append(os.getcwd()) 
     train_path, Y, version, mdir = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
     ind2c, _ = datasets.load_full_codes(train_path, version=version)
 

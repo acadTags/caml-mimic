@@ -18,7 +18,7 @@ def write_discharge_summaries(out_file):
     with open(notes_file, 'r') as csvfile:
         with open(out_file, 'w') as outfile:
             print("writing to %s" % (out_file))
-            outfile.write(','.join(['SUBJECT_ID', 'HADM_ID', 'CHARTTIME', 'TEXT']) + '\n')
+            outfile.write(','.join(['ROW_ID','SUBJECT_ID', 'HADM_ID', 'CHARTTIME', 'TEXT']) + '\n')
             notereader = csv.reader(csvfile)
             #header
             next(notereader)
@@ -31,6 +31,6 @@ def write_discharge_summaries(out_file):
                     #tokenize, lowercase and remove numerics
                     tokens = [t.lower() for t in tokenizer.tokenize(note) if not t.isnumeric()]
                     text = '"' + ' '.join(tokens) + '"'
-                    outfile.write(','.join([line[1], line[2], line[4], text]) + '\n')
+                    outfile.write(','.join([line[0], line[1], line[2], line[4], text]) + '\n')
                 i += 1
     return out_file

@@ -70,9 +70,9 @@ def init(args):
         # parameter 1 : torch.Size([50, 100, 10]), 500 filters, kernel size [100, 10].
         # parameter 2 : torch.Size([50])
         # parameter 3 : torch.Size([8921, 50])
-        # parameter 4 : torch.Size([8921]) # this are is bias weights probably.
+        # parameter 4 : torch.Size([8921]) # these are bias weights.
         # parameter 5 : torch.Size([8921, 50])
-        # parameter 6 : torch.Size([8921]) # this are is bias weights probably.
+        # parameter 6 : torch.Size([8921]) # these are bias weights.
         
     if not args.test_model:
         optimizer = optim.Adam(model.parameters(), weight_decay=args.weight_decay, lr=args.lr)

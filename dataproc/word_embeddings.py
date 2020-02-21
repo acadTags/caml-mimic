@@ -11,13 +11,12 @@ class ProcessedIter(object):
     def __init__(self, Y, filename):
         self.filename = filename
 
-    def __iter__(self): # this makes an iterable -HD
-        #print("calling the iter function")
+    def __iter__(self):
         with open(self.filename) as f:
             r = csv.reader(f)
             next(r)
             for row in r:
-                yield (row[3].split())
+                yield (row[4].split())
 
 def word_embeddings(Y, notes_file, embedding_size, min_count, n_iter):
     modelname = "processed_%s.w2v" % (Y)
@@ -26,7 +25,7 @@ def word_embeddings(Y, notes_file, embedding_size, min_count, n_iter):
     model = w2v.Word2Vec(size=embedding_size, min_count=min_count, workers=4, iter=n_iter)
     print("building word2vec vocab on %s..." % (notes_file))
     
-    model.build_vocab(sentences) # sentences (iterable of list of str) – The sentences iterable can be simply a list of lists of tokens, but for larger corpora, consider an iterable that streams the sentences directly from disk/network. # see https://radimrehurek.com/gensim/models/word2vec.html - HD
+    model.build_vocab(sentences)
     print("training...")
     model.train(sentences, total_examples=model.corpus_count, epochs=model.iter)
     out_file = '/'.join(notes_file.split('/')[:-1] + [modelname])

@@ -27,7 +27,7 @@ def pick_model(args, dicts):
                                   args.bidirectional)
     elif args.model == "cnn_vanilla":
         filter_size = int(args.filter_size)
-        model = models.VanillaConv(Y, args.embed_file, filter_size, args.num_filter_maps, args.gpu, dicts, args.embed_size, args.dropout)
+        model = models.VanillaConv(Y, args.embed_file, filter_size, args.num_filter_maps, args.gpu, dicts, args.embed_size, args.dropout, args.code_emb)
     elif args.model == "conv_attn":
         filter_size = int(args.filter_size)
         model = models.ConvAttnPool(Y, args.embed_file, filter_size, args.num_filter_maps, args.lmbda, args.gpu, dicts,

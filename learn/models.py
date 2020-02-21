@@ -2,6 +2,7 @@
     Holds PyTorch models
 """
 from gensim.models import KeyedVectors
+from gensim.models import Word2Vec
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -163,11 +164,11 @@ class ConvAttnPool(BaseModel):
 
         #context vectors for computing attention as in 2.2
         self.U = nn.Linear(num_filter_maps, Y)
-        xavier_uniform(self.U.weight)
+        #xavier_uniform(self.U.weight)
 
         #final layer: create a matrix to use for the L binary classifiers as in 2.3
         self.final = nn.Linear(num_filter_maps, Y)
-        xavier_uniform(self.final.weight)
+        #xavier_uniform(self.final.weight)
 
         #initialize with trained code embeddings if applicable
         if code_emb:
@@ -176,7 +177,9 @@ class ConvAttnPool(BaseModel):
             #weights = torch.eye(self.embed_size).unsqueeze(2).expand(-1,-1,kernel_size)/kernel_size
             #self.conv.weight.data = weights.clone()
             #self.conv.bias.data.zero_()
-        
+        else:
+            xavier_uniform(self.U.weight)
+            xavier_uniform(self.final.weight)
         #conv for label descriptions as in 2.5
         #description module has its own embedding and convolution layers
         if lmbda > 0:
@@ -190,14 +193,38 @@ class ConvAttnPool(BaseModel):
             self.label_fc1 = nn.Linear(num_filter_maps, num_filter_maps)
             xavier_uniform(self.label_fc1.weight)
 
+    # def _code_emb_init(self, code_emb, dicts):
+        # #code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        # code_embs = Word2Vec.load(code_emb)
+        # weights = np.zeros(self.final.weight.size())
+        # for i in range(self.Y):
+            # code = dicts['ind2c'][i]
+            # weights[i] = code_embs.wv[code]
+        # self.U.weight.data = torch.Tensor(weights).clone()
+        # self.final.weight.data = torch.Tensor(weights).clone()
     def _code_emb_init(self, code_emb, dicts):
-        code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        #code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        code_embs = Word2Vec.load(code_emb)
+        print(self.Y, code_embs.vector_size)
+        bound = np.sqrt(6.0) / np.sqrt(self.Y + code_embs.vector_size)  # bound for random variables for Xavier initialization.
         weights = np.zeros(self.final.weight.size())
+        n_exist, n_inexist = 0, 0
         for i in range(self.Y):
             code = dicts['ind2c'][i]
-            weights[i] = code_embs[code]
-        self.U.weight.data = torch.Tensor(weights).clone()
-        self.final.weight.data = torch.Tensor(weights).clone()
+            # the normalisation steps here follow brightmart's implementation, see def assign_pretrained_word_embedding(...) in 
+            #https://github.com/brightmart/text_classification/blob/master/a02_TextCNN/p7_TextCNN_train.py
+            if code in code_embs.wv.vocab:
+                n_exist = n_exist + 1
+                #weights[i] = code_embs.wv[code]
+                vec = code_embs.wv[code]
+                weights[i] = vec / float(np.linalg.norm(vec) + 1e-6) #normalise to unit length -HD #any better normalisation methods?
+            else:
+                n_inexist = n_inexist + 1
+                weights[i] = np.random.uniform(-bound, bound, code_embs.vector_size); #using the original xavier uniform initialization. -HD
+        print("code exists embedding:", n_exist, " ;code not exist embedding:", n_inexist)
+        self.U.weight.data = torch.Tensor(weights).clone() # we want that similar labels attend to similar sets of ngrams in a document.
+        self.final.weight.data = torch.Tensor(weights).clone() # we want that similar labels have similar output values in the prediction.
+        print("final layer and attention layer: code embedding initialized")
         
     def forward(self, x, target, desc_data=None, get_attention=True, sim_data=None, sub_data=None):
         #get embeddings and apply dropout
@@ -267,23 +294,41 @@ class VanillaConv(BaseModel):
 
         #linear output
         self.fc = nn.Linear(num_filter_maps, Y)
-        xavier_uniform(self.fc.weight)
         
+        print('code_emb',code_emb)
         #initialize with trained code embeddings if applicable
-        if code_emb:
+        if code_emb: # if a code embedding exists for a label, then initialize the self.fc.weight with code embedding.
             self._code_emb_init(code_emb, dicts)
             ##also set conv weights to do sum of inputs
             #weights = torch.eye(self.embed_size).unsqueeze(2).expand(-1,-1,kernel_size)/kernel_size
             #self.conv.weight.data = weights.clone()
             #self.conv.bias.data.zero_()
+        else:
+            # otherwise, initialize the weight using xavier uniform.      
+            xavier_uniform(self.fc.weight)  
+            #print("final layer: xavier uniform initialized")
     
     def _code_emb_init(self, code_emb, dicts):
-        code_embs = KeyedVectors.load_word2vec_format(code_emb)
-        weights = np.zeros(self.final.weight.size())
+        #code_embs = KeyedVectors.load_word2vec_format(code_emb)
+        code_embs = Word2Vec.load(code_emb)
+        print(self.Y, code_embs.vector_size)
+        bound = np.sqrt(6.0) / np.sqrt(self.Y + code_embs.vector_size)  # bound for random variables for Xavier initialization.
+        weights = np.zeros(self.fc.weight.size())
+        n_exist, n_inexist = 0, 0
         for i in range(self.Y):
             code = dicts['ind2c'][i]
-            weights[i] = code_embs[code]
+            if code in code_embs.wv.vocab:
+                n_exist = n_exist + 1
+                #weights[i] = code_embs.wv[code]
+                vec = code_embs.wv[code]
+                weights[i] = vec / float(np.linalg.norm(vec) + 1e-6) #normalise to unit length -HD
+            else:
+                n_inexist = n_inexist + 1
+                weights[i] = np.random.uniform(-bound, bound, code_embs.vector_size);
+                #using the original xavier uniform initialization.
+        print("code exists embedding:", n_exist, " ;code not exist embedding:", n_inexist)
         self.fc.weight.data = torch.Tensor(weights).clone()
+        print("final layer: code embedding initialized")
         
     def forward(self, x, target, desc_data=None, get_attention=False):
         #print('calling the forward function now')
